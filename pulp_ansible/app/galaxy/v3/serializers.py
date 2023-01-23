@@ -355,9 +355,11 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
     signatures = serializers.SerializerMethodField()
 
     repository_name = serializers.SerializerMethodField()
+    repository_id = serializers.SerializerMethodField()
 
     class Meta:
         fields = (
+            "pk",
             "pulp_id",
             "namespace",
             "name",
@@ -371,6 +373,7 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
             "requires_ansible",
             "dependencies",
             "repository_name",
+            "repository_id",
             "tags",
             "signatures",
         )
@@ -428,6 +431,9 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
 
     def get_repository_name(self, obj):
         return obj.reponame
+
+    def get_repository_id(self, obj):
+        return obj.repository.pulp_id
 
     def get_signatures(self, obj):
         if hasattr(obj, "filtered_signatures"):
