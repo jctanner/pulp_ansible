@@ -422,8 +422,8 @@ class AnsibleDistribution(Distribution):
 class RepositoryCollectionVersionIndex(models.Model):
 
     id = models.CharField(max_length=255, primary_key=True)
-    repository = models.ForeignKey(AnsibleRepository, on_delete=models.CASCADE)
-    collectionversion = models.ForeignKey(CollectionVersion, on_delete=models.CASCADE)
+    repository = models.ForeignKey(AnsibleRepository, on_delete=models.DO_NOTHING)
+    collectionversion = models.ForeignKey(CollectionVersion, on_delete=models.DO_NOTHING)
     reponame = models.CharField(max_length=255)
     namespace = models.CharField(max_length=255)
     name = models.CharField(max_length=255)

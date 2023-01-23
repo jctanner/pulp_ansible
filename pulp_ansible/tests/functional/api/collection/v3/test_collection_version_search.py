@@ -338,5 +338,19 @@ def test_collection_version_search(pulp_client, search_specs):
     keys = keys_from_specs(keys)
     assert len(resp9) == len(keys)
 
-    # by sign state
-    # TBD
+    # by sign state = True
+    search_url = "/pulp_ansible/galaxy/default/api/v3/plugin/ansible/search/collection-versions/"
+    search_url += "?signed=True"
+    resp10 = pulp_client.get(search_url)
+    keys = [x for x in search_specs if x.get("signed") is True]
+    keys = keys_from_specs(keys)
+    assert len(resp10) == len(keys)
+
+    # by sign state = True
+    search_url = "/pulp_ansible/galaxy/default/api/v3/plugin/ansible/search/collection-versions/"
+    search_url += "?signed=False"
+    resp11 = pulp_client.get(search_url)
+    keys = [x for x in search_specs if x.get("signed") is False]
+    keys = keys_from_specs(keys)
+    assert len(resp11) == len(keys)
+
