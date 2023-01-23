@@ -80,19 +80,19 @@ class CollectionVersionSearchFilter(FilterSet):
         return qs
 
     def filter_by_name(self, qs, name, value):
-        return qs.filter(Q(content__ansible_collectionversion__name=value))
+        return qs.filter(Q(collectionversion__name=value))
 
     def filter_by_namespace(self, qs, name, value):
-        return qs.filter(Q(content__ansible_collectionversion__namespace=value))
+        return qs.filter(Q(collectionversion__namespace=value))
 
     def filter_by_version(self, qs, name, value):
-        return qs.filter(Q(content__ansible_collectionversion__version=value))
+        return qs.filter(Q(collectionversion__version=value))
 
     def filter_by_dependency(self, qs, name, value):
         """Return a list of collections that depend on a given collection name."""
         #kwargs = {f"content__ansible_collectionversion__dependencies__{value}__isnull": False}
         #qs = qs.filter(**kwargs)
-        qs = qs.filter(content__ansible_collectionversion__dependencies__has_key=value)
+        qs = qs.filter(collectionversion__dependencies__has_key=value)
         return qs
 
     def filter_by_deprecated(self, qs, name, value):
@@ -109,8 +109,9 @@ class CollectionVersionSearchFilter(FilterSet):
             bool_value = True
 
         print(f'FILTER_BY_SIGNED qs:{qs}')
-
-        return qs
+        if bool_value:
+            return qs.filter(Q(sig_count__gte=1))
+        return qs.filter(Q(sig_count=0))
 
     def filter_by_q(self, queryset, name, value):
         """
@@ -123,9 +124,9 @@ class CollectionVersionSearchFilter(FilterSet):
             The Django queryset that was passed in, additionally filtered by full-text search.
         """
         search_query = SearchQuery(value)
-        qs = queryset.filter(content__ansible_collectionversion__search_vector=search_query)
+        qs = queryset.filter(collectionversion__search_vector=search_query)
         ts_rank_fn = Func(
-            F("content__ansible_collectionversion__search_vector"),
+            F("collectionversion__search_vector"),
             search_query,
             32,  # RANK_NORMALIZATION = 32
             function="ts_rank",
@@ -143,5 +144,5 @@ class CollectionVersionSearchFilter(FilterSet):
             Queryset of CollectionVersion that matches all tags
         """
         for tag in value.split(","):
-            qs = qs.filter(content__ansible_collectionversion__tags__name=tag)
+            qs = qs.filter(collectionversion__tags__name=tag)
         return qs

@@ -379,9 +379,10 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
         model = models.CollectionVersion
 
     def get_collection_version(self, obj):
-        if isinstance(obj, models.CollectionVersion):
-            return obj
-        return obj.collection_version
+        #if isinstance(obj, models.CollectionVersion):
+        #    return obj
+        #return obj.collection_version
+        return obj.collectionversion
 
     def get_pulp_id(self, obj):
 
@@ -398,7 +399,8 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
         #return self.get_collection_version(obj).pulp_id
         #return obj.pulp_id
         '''
-        return obj.pk
+        #return obj.pk
+        return obj.collectionversion.content_ptr_id
 
     def get_namespace(self, obj):
         return self.get_collection_version(obj).namespace

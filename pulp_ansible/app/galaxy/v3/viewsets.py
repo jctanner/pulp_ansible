@@ -27,6 +27,7 @@ from pulp_ansible.app.models import (
     AnsibleDistribution,
     CollectionVersion,
     CollectionVersionSignature,
+    RepositoryCollectionVersionIndex
 )
 
 from pulp_ansible.app.viewsets import (
@@ -114,104 +115,7 @@ class CollectionVersionSearchViewSet(viewsets.ModelViewSet):
     serializer_class = CollectionVersionSearchListSerializer
     pagination_class = CollectionVersionSearchViewSetPagination
     #filter_backends = (DjangoFilterBackend,)
-    #filterset_class = CollectionVersionSearchFilter
+    filterset_class = CollectionVersionSearchFilter
 
     def get_queryset(self):
-
-        # need a default where to reduce the cartesian product
-        where_clause = '''
-            cc.pulp_id=crc.content_id
-            AND
-            (
-                SELECT
-                    COUNT(*)
-                FROM
-                    core_repositorycontent crc2
-                WHERE
-                    crc2.content_id=cc.pulp_id
-                    AND
-                    crc2.repository_id=cr.pulp_id
-                    AND
-                    acv.content_ptr_id=crc2.content_id
-            )>=1'''
-
-        # filter on signed or !signed
-        signed_raw = self.request.query_params.get('signed')
-        if signed_raw is not None:
-            signed_bool = False
-            if signed_raw in [True, "True", "true", "t", 1, "1"]:
-                signed_bool = True
-
-            where_clause += '\n'
-            where_clause += '\t\tAND'
-            where_clause += '\n'
-            where_clause += '''\t\t(
-                SELECT
-                    COUNT(*)
-                FROM
-                    core_repositorycontent crc4,
-                    ansible_collectionversionsignature acvs
-                WHERE
-                    crc4.repository_id=crc.repository_id
-                    AND
-                    crc4.content_id=acvs.content_ptr_id
-            )'''
-            if signed_bool:
-                where_clause += '>=1'
-            else:
-                where_clause += '=0'
-
-        # use a cartesian product to make combinations of repoversion, collectionversion
-        # and then reduce down to actual things by where clauses
-        return CollectionVersion.objects.raw(f'''
-            SELECT
-                distinct
-                acv.*,
-                cr.name as reponame,
-                acv.namespace,
-                acv.name,
-                acv.version,
-                (
-                    SELECT
-                        COUNT(*)
-                    FROM
-                        core_repositorycontent crc2
-                    WHERE
-                        crc2.content_id=cc.pulp_id
-                        AND
-                        crc2.repository_id=cr.pulp_id
-                        AND
-                        acv.content_ptr_id=crc2.content_id
-                ) as rc_count,
-                (
-                    SELECT
-                        COUNT(*)
-                    FROM
-                        ansible_collectionversionsignature acvs
-                    WHERE
-                        acvs.signed_collection_id=acv.content_ptr_id
-                        AND
-                        (
-                            SELECT
-                                COUNT(*)
-                            FROM
-                                core_repositorycontent crc3
-                            WHERE
-                                crc3.repository_id=crc.repository_id
-                                AND
-                                crc3.content_id=acvs.content_ptr_id
-                        )>=1
-                ) as sig_count
-            FROM
-                ansible_collectionversion acv,
-                core_content cc,
-                core_repositorycontent crc
-            inner join core_repository cr ON crc.repository_id=cr.pulp_id
-            WHERE
-                {where_clause}
-            ORDER BY
-                acv.namespace,
-                acv.name,
-                acv.version,
-                reponame
-        ''')
+        return RepositoryCollectionVersionIndex.objects.all()
