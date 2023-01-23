@@ -103,37 +103,12 @@ class CollectionVersionSearchFilter(FilterSet):
         return qs
 
     def filter_by_signed(self, qs, name, value):
+
         bool_value = False
         if value in [True, "True", "true", "t", 1, "1"]:
             bool_value = True
 
-        '''
-        #qs = qs.filter(is_deprecated=bool_value)
-        obj = qs.first()
-        for x in dir(obj):
-            if not x.endswith('signed'):
-                continue
-            print(x)
-            print(getattr(obj, x))
-        '''
-
-        '''
-        if bool_value == True:
-            qs = qs.filter(signatures_count__gte=1)
-        else:
-            qs = qs.filter(signatures_count__lte=0)
-        '''
-
-        # akey = f'signatures_{base_path_safe}'
-        # How to know what the base_path is for each CV?
-        fcv = qs.first()
-        print(fcv)
-        for x in dir(fcv):
-            #print(x)
-            if 'sig' not in x:
-                continue
-            #print(x)
-            print(f'{x}: {getattr(fcv, x)}')
+        print(f'FILTER_BY_SIGNED qs:{qs}')
 
         return qs
 

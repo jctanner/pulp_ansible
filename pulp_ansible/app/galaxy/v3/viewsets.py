@@ -117,7 +117,53 @@ class CollectionVersionSearchViewSet(viewsets.ModelViewSet):
     #filterset_class = CollectionVersionSearchFilter
 
     def get_queryset(self):
-        return CollectionVersion.objects.raw('''
+
+        # need a default where to reduce the cartesian product
+        where_clause = '''
+            cc.pulp_id=crc.content_id
+            AND
+            (
+                SELECT
+                    COUNT(*)
+                FROM
+                    core_repositorycontent crc2
+                WHERE
+                    crc2.content_id=cc.pulp_id
+                    AND
+                    crc2.repository_id=cr.pulp_id
+                    AND
+                    acv.content_ptr_id=crc2.content_id
+            )>=1'''
+
+        # filter on signed or !signed
+        signed_raw = self.request.query_params.get('signed')
+        if signed_raw is not None:
+            signed_bool = False
+            if signed_raw in [True, "True", "true", "t", 1, "1"]:
+                signed_bool = True
+
+            where_clause += '\n'
+            where_clause += '\t\tAND'
+            where_clause += '\n'
+            where_clause += '''\t\t(
+                SELECT
+                    COUNT(*)
+                FROM
+                    core_repositorycontent crc4,
+                    ansible_collectionversionsignature acvs
+                WHERE
+                    crc4.repository_id=crc.repository_id
+                    AND
+                    crc4.content_id=acvs.content_ptr_id
+            )'''
+            if signed_bool:
+                where_clause += '>=1'
+            else:
+                where_clause += '=0'
+
+        # use a cartesian product to make combinations of repoversion, collectionversion
+        # and then reduce down to actual things by where clauses
+        return CollectionVersion.objects.raw(f'''
             SELECT
                 distinct
                 acv.*,
@@ -162,20 +208,7 @@ class CollectionVersionSearchViewSet(viewsets.ModelViewSet):
                 core_repositorycontent crc
             inner join core_repository cr ON crc.repository_id=cr.pulp_id
             WHERE
-                cc.pulp_id=crc.content_id
-                AND
-                (
-                    SELECT
-                        COUNT(*)
-                    FROM
-                        core_repositorycontent crc2
-                    WHERE
-                        crc2.content_id=cc.pulp_id
-                        AND
-                        crc2.repository_id=cr.pulp_id
-                        AND
-                        acv.content_ptr_id=crc2.content_id
-                )>=1
+                {where_clause}
             ORDER BY
                 acv.namespace,
                 acv.name,
