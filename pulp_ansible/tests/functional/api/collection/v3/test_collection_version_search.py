@@ -27,6 +27,16 @@ from pulp_ansible.tests.functional.constants import (
 logger = logging.getLogger(__name__)
 
 
+def keys_from_specs(specs):
+    keys = sorted(
+        [
+            x["repository_name"] + ":" + x["namespace"] + ":" + x["name"] + ":" + x["version"]
+            for x in specs
+        ]
+    )
+    return keys
+
+
 @pytest.fixture(scope="session")
 def pulp_client():
     cfg = config.get_config()
@@ -80,7 +90,6 @@ def search_specs(
         cversions = pulp_client.get("/pulp/api/v3/content/ansible/collection_versions/")
         return dict(((x["namespace"], x["name"], x["version"]), x) for x in cversions)
 
-
     # define signing service
     signing_service = ascii_armored_detached_signing_service
     signing_body = {"signing_service": signing_service.pulp_href, "content_units": ["*"]}
@@ -112,7 +121,7 @@ def search_specs(
             "version": "1.0.1",
             "tags": ["a", "b", "c"],
             "repository_name": "automation-hub-1",
-            "signed": True
+            "signed": True,
         },
         {
             "namespace": "foo",
@@ -121,7 +130,7 @@ def search_specs(
             "tags": ["d", "e", "f"],
             "dependencies": {"foo.bar": ">=1.0.0"},
             "repository_name": "automation-hub-2",
-            "signed": True
+            "signed": True,
         },
         {
             "namespace": "jingle",
@@ -129,7 +138,7 @@ def search_specs(
             "version": "12.25.0",
             "tags": ["trees", "sleighs", "gifts"],
             "repository_name": "automation-hub-1",
-            "signed": True
+            "signed": True,
         },
         {
             "namespace": "jingle",
@@ -137,7 +146,7 @@ def search_specs(
             "version": "12.25.0",
             "tags": ["trees", "sleighs", "gifts"],
             "repository_name": "automation-hub-3",
-            "signed": False
+            "signed": False,
         },
         {
             "namespace": "jingle",
@@ -146,7 +155,7 @@ def search_specs(
             "dependencies": {"foo.bar": ">=1.0.0"},
             "tags": ["trees", "sleighs", "gifts"],
             "repository_name": "automation-hub-2",
-            "signed": True
+            "signed": True,
         },
     ]
 
@@ -185,9 +194,9 @@ def search_specs(
             created_repos[spec["repository_name"]] = pulp_repo
 
             # sign the repo?
-            repository_href = pulp_repo['pulp_href']
+            repository_href = pulp_repo["pulp_href"]
             res = monitor_task(ansible_repo_api_client.sign(repository_href, signing_body).task)
-            assert res.state == 'completed'
+            assert res.state == "completed"
 
         # make the distribution
         if spec["repository_name"] not in created_dists:
@@ -241,31 +250,24 @@ def search_specs(
             # import epdb; epdb.st()
 
         # sign it ...
-        if spec['signed']:
+        if spec["signed"]:
             cvs = get_collection_versions()
-            ckey = (spec['namespace'], spec['name'], spec['version'])
+            ckey = (spec["namespace"], spec["name"], spec["version"])
             cv = cvs[ckey]
-            collection_url = cv['pulp_href']
-            repo = created_repos[spec['repository_name']]
+            collection_url = cv["pulp_href"]
+            repo = created_repos[spec["repository_name"]]
             body = {
                 "content_units": [collection_url],
-                "signing_service": ascii_armored_detached_signing_service.pulp_href
+                "signing_service": ascii_armored_detached_signing_service.pulp_href,
             }
-            res = monitor_task(ansible_repo_api_client.sign(repo['pulp_href'], body).task)
-            assert res.state == 'completed'
+            res = monitor_task(ansible_repo_api_client.sign(repo["pulp_href"], body).task)
+            assert res.state == "completed"
 
     yield specs
 
 
 @pytest.mark.pulp_on_localhost
 def test_collection_version_search(pulp_client, search_specs):
-
-    def keys_from_specs(specs):
-        keys = sorted([
-            x['repository_name'] + ':' + x["namespace"] + ":" + x["name"] + ":" + x["version"]
-            for x in specs
-        ])
-        return keys
 
     # no filters ...
     search_url = "/pulp_ansible/galaxy/default/api/v3/plugin/ansible/search/collection-versions/"
@@ -335,7 +337,6 @@ def test_collection_version_search(pulp_client, search_specs):
     search_url = "/pulp_ansible/galaxy/default/api/v3/plugin/ansible/search/collection-versions/"
     search_url += "?deprecated=True"
     resp9 = pulp_client.get(search_url)
-    keys = [x for x in search_specs if x.get("deprecated") == True]
+    keys = [x for x in search_specs if x.get("deprecated") is True]
     keys = keys_from_specs(keys)
     assert len(resp9) == len(keys)
-

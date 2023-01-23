@@ -335,19 +335,17 @@ class ClientConfigurationSerializer(serializers.Serializer):
     default_distribution_path = serializers.CharField(allow_null=True)
 
 
-
 class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
 
     # broken ...
     href = serializers.SerializerMethodField()
 
-    # override because RepositoryContent != CollectionVersion without a cast ...
     pulp_id = serializers.SerializerMethodField()
     namespace = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()
     version = serializers.SerializerMethodField()
     is_highest = serializers.SerializerMethodField()
-    #is_deprecated = serializers.SerializerMethodField()
+    # is_deprecated = serializers.SerializerMethodField()
     is_signed = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     updated_at = serializers.SerializerMethodField()
@@ -365,7 +363,7 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
             "name",
             "version",
             "is_highest",
-            #"is_deprecated",
+            # "is_deprecated",
             "is_signed",
             "href",
             "created_at",
@@ -374,32 +372,15 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
             "dependencies",
             "repository_name",
             "tags",
-            "signatures"
+            "signatures",
         )
         model = models.CollectionVersion
 
     def get_collection_version(self, obj):
-        #if isinstance(obj, models.CollectionVersion):
-        #    return obj
-        #return obj.collection_version
         return obj.collectionversion
 
     def get_pulp_id(self, obj):
-
-        '''
-        print(f'GET_PULP_ID obj:{obj}')
-        for x in dir(obj):
-            if x.startswith('_'):
-                continue
-            if x[0] != x[0].lower():
-                continue
-            print('\t' + x)
-            #print('\t\t' + getattr(obj, x))
-
-        #return self.get_collection_version(obj).pulp_id
-        #return obj.pulp_id
-        '''
-        #return obj.pk
+        # return obj.pk
         return obj.collectionversion.content_ptr_id
 
     def get_namespace(self, obj):
@@ -429,10 +410,7 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
     def get_href(self, obj) -> str:
         """Get href."""
 
-        ctx = _get_distro_context({
-            "path": obj.reponame,
-            "distro_base_path": obj.reponame}
-        )
+        ctx = _get_distro_context({"path": obj.reponame, "distro_base_path": obj.reponame})
         cv = self.get_collection_version(obj)
         return reverse(
             settings.ANSIBLE_URL_NAMESPACE + "collection-versions-detail",
@@ -452,6 +430,6 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
         return obj.reponame
 
     def get_signatures(self, obj):
-        if hasattr(obj, 'filtered_signatures'):
+        if hasattr(obj, "filtered_signatures"):
             return obj.filtered_signatures
         return []

@@ -207,8 +207,8 @@ v3_plugin_urls = [
     path(
         "search/collection-versions/",
         viewsets_v3.CollectionVersionSearchViewSet.as_view({"get": "list"}),
-        name="collection-versions-search"
-    )
+        name="collection-versions-search",
+    ),
 ]
 
 v3_urls = [

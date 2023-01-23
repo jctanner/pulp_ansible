@@ -1,5 +1,3 @@
-import datetime
-
 from django.contrib.postgres.search import SearchQuery
 from django.db.models import fields as db_fields
 from django.db.models.expressions import F, Func
@@ -7,23 +5,8 @@ from django_filters import filters
 from django_filters import FilterSet
 from django.db.models import Q
 
-from pulpcore.app.models.repository import RepositoryContent
-from pulpcore.plugin.viewsets import ContentFilter
-from pulp_ansible.app.viewsets import (
-    CollectionVersionFilter,
-)
 
-
-#class CollectionVersionSearchFilter(ContentFilter):
-#class CollectionVersionSearchFilter(FilterSet):
-#class CollectionVersionSearchFilter(CollectionVersionFilter):
 class CollectionVersionSearchFilter(FilterSet):
-
-    '''
-    class Meta:
-        model = RepositoryContent
-        fields = ["namespace", "name", "version", "q", "is_highest", "tags"]
-    '''
 
     name = filters.CharFilter(
         method="filter_by_name",
@@ -63,14 +46,14 @@ class CollectionVersionSearchFilter(FilterSet):
     tags = filters.CharFilter(
         field_name="tags",
         method="filter_by_tags",
-        #help_text=_("Filter by comma separate list of tags that must all be matched"),
+        # help_text=_("Filter by comma separate list of tags that must all be matched"),
         help_text="Filter by comma separate list of tags that must all be matched",
     )
 
     def filter_by_repository_name(self, qs, name, value):
         """Allow for multiple repository names to filter on."""
         include_q = Q()
-        if ',' in value:
+        if "," in value:
             repository_names = value.split(",")
             for rn in repository_names:
                 include_q = include_q | Q(repository__name=rn)
@@ -90,8 +73,6 @@ class CollectionVersionSearchFilter(FilterSet):
 
     def filter_by_dependency(self, qs, name, value):
         """Return a list of collections that depend on a given collection name."""
-        #kwargs = {f"content__ansible_collectionversion__dependencies__{value}__isnull": False}
-        #qs = qs.filter(**kwargs)
         qs = qs.filter(collectionversion__dependencies__has_key=value)
         return qs
 
@@ -108,7 +89,6 @@ class CollectionVersionSearchFilter(FilterSet):
         if value in [True, "True", "true", "t", 1, "1"]:
             bool_value = True
 
-        print(f'FILTER_BY_SIGNED qs:{qs}')
         if bool_value:
             return qs.filter(Q(sig_count__gte=1))
         return qs.filter(Q(sig_count=0))
