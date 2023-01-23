@@ -44,7 +44,17 @@ SELECT
 					AND
 					crc3.content_id=acvs.content_ptr_id
 			)>=1
-	) as sig_count
+	) as sig_count,
+	(
+		SELECT
+			COUNT(*)
+		FROM
+			ansible_ansiblecollectiondeprecated acd
+		WHERE
+			acd.namespace=acv.namespace
+			AND
+			acd.name=acv.name
+	) as deprecation_count
 FROM
 	ansible_collectionversion acv,
 	core_content cc,

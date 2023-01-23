@@ -330,9 +330,6 @@ def test_collection_version_search(pulp_client, search_specs):
     keys = keys_from_specs(keys)
     assert len(resp8) == len(keys)
 
-    # by sign state
-    # TBD
-
     # by deprecated True/true/False/false/1/0 ...
     search_url = "/pulp_ansible/galaxy/default/api/v3/plugin/ansible/search/collection-versions/"
     search_url += "?deprecated=True"
@@ -340,3 +337,6 @@ def test_collection_version_search(pulp_client, search_specs):
     keys = [x for x in search_specs if x.get("deprecated") is True]
     keys = keys_from_specs(keys)
     assert len(resp9) == len(keys)
+
+    # by sign state
+    # TBD

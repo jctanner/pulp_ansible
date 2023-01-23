@@ -80,8 +80,9 @@ class CollectionVersionSearchFilter(FilterSet):
         bool_value = False
         if value in [True, "True", "true", "t", 1, "1"]:
             bool_value = True
-        qs = qs.filter(is_deprecated=bool_value)
-        return qs
+        if bool_value:
+            return qs.filter(Q(deprecation_count__gte=1))
+        return qs.filter(Q(deprecation_count=0))
 
     def filter_by_signed(self, qs, name, value):
 

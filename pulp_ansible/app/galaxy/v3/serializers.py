@@ -345,7 +345,7 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
     name = serializers.SerializerMethodField()
     version = serializers.SerializerMethodField()
     is_highest = serializers.SerializerMethodField()
-    # is_deprecated = serializers.SerializerMethodField()
+    is_deprecated = serializers.SerializerMethodField()
     is_signed = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     updated_at = serializers.SerializerMethodField()
@@ -363,7 +363,7 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
             "name",
             "version",
             "is_highest",
-            # "is_deprecated",
+            "is_deprecated",
             "is_signed",
             "href",
             "created_at",
@@ -418,7 +418,7 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
         )
 
     def get_is_deprecated(self, obj):
-        return obj.is_deprecated
+        return obj.deprecation_count > 0
 
     def get_is_signed(self, obj):
         return obj.sig_count > 0

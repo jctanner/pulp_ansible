@@ -428,6 +428,7 @@ class RepositoryCollectionVersionIndex(models.Model):
     namespace = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
     version = models.CharField(max_length=255)
+    deprecation_count = models.IntegerField()
     sig_count = models.IntegerField()
 
     class Meta:
