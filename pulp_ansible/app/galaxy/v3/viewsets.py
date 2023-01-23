@@ -1,4 +1,5 @@
 import datetime
+import operator
 
 from django.db.models import Value, F, CharField
 from django.db.models import When, Case, Count
@@ -6,6 +7,8 @@ from django.db.models import Q
 from django.db.models import Prefetch
 from django.db.models import OuterRef
 from django.db.models import Subquery
+from django.db.models import sql
+
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models.functions import Concat
@@ -33,6 +36,73 @@ from pulp_ansible.app.viewsets import (
 from pulp_ansible.app.galaxy.v3.filters import CollectionVersionSearchFilter
 
 
+from django.db.models import QuerySet
+from django.db.models.query import ModelIterable
+
+
+class QuerySet2(QuerySet):
+
+    model = CollectionVersion
+    _sticky_filter = None
+    _for_write = None
+    _result_cache = None
+    _prefetch_related_lookups = ()
+    _prefetch_done = False
+    _known_related_objects = {}
+    _fields = None
+    _defer_next_filter = False
+    _deferred_filter = None
+    _db = None
+    _iterable_class = ModelIterable
+
+    def __init__(self, raw=None, model=None, query=None, using=None, hints=None):
+        self._db = using
+        self._raw = raw
+
+    @property
+    def _hints(self):
+        return {}
+
+    @property
+    def _query(self):
+        #return sql.Query(self.model)
+        #return self._raw
+        return self
+
+    def get_count(self, using=None):
+        return 10
+
+    def chain(self):
+        return self
+
+    def set_limits(self, start, stop):
+        return
+
+    def get_compiler(self, using=None):
+        return self
+
+    def execute_sql(self, chunked_fetch=None, chunk_size=None):
+        return None
+
+    @property
+    def select(self):
+        return self._raw
+
+    @property
+    def klass_info(self):
+        return {
+            'model': self.model,
+            'select_fields': [0,1]
+        }
+
+    @property
+    def annotation_col_map(self):
+        return None
+
+    def all(self):
+        return self
+
+
 class CollectionVersionSearchViewSetPagination(PageNumberPagination):
     page_size = 100
     page_size_query_param = "page_size"
@@ -43,97 +113,72 @@ class CollectionVersionSearchViewSet(viewsets.ModelViewSet):
 
     serializer_class = CollectionVersionSearchListSerializer
     pagination_class = CollectionVersionSearchViewSetPagination
-    filter_backends = (DjangoFilterBackend,)
-    filterset_class = CollectionVersionSearchFilter
+    #filter_backends = (DjangoFilterBackend,)
+    #filterset_class = CollectionVersionSearchFilter
 
     def get_queryset(self):
-
-        include_q = Q()
-        exclude_q = Q()
-
-        # make a list of the latest repo versions ...
-        for distro in AnsibleDistribution.objects.all():
-            if not distro.repository_version and distro.repository is None:
-                continue
-            elif distro.repository_version:
-                rv = distro.repository_version.number
-            else:
-                rv = distro.repository.latest_version().number
-
-            include_q = include_q | Q(repository=distro.repository, version_added__number__lte=rv)
-            exclude_q = exclude_q | Q(repository=distro.repository, version_removed__number__lte=rv)
-
-        # reduce repository content down to collectionversions and those that are
-        # in the latest repository versions found above ...
-        qs = RepositoryContent.objects.filter(
-                content__pulp_type="ansible.collection_version"
-            ).exclude(
-                exclude_q
-            ).filter(
-                include_q
-            )
-
-        # gerrod's suggestion ...
-        # sets the obj's collection_version property to the CV (at the python level)
-        cvs = Prefetch("content", queryset=CollectionVersion.objects.all(), to_attr="collection_version")
-        qs = qs.filter(content__pulp_type="ansible.collection_version").prefetch_related(cvs)
-
-		#################################
-		# Annotations
-		#################################
-
-        # add a field for the fqn:<namespace>.<name> ...
-        qs = qs.annotate(
-            fqn=Concat(
-                F("content__ansible_collectionversion__namespace"),
-                Value("."),
-                F("content__ansible_collectionversion__name"),
-                output_field=CharField()
-            )
-        )
-
-        # make a queryable list of deprecated collections
-        deprecation_qs = AnsibleCollectionDeprecated.objects.all()
-        deprecation_qs = deprecation_qs.annotate(
-            fqn=Concat(F("namespace"), Value("."), F("name"), output_field=CharField())
-        )
-        deprecations = [x.fqn for x in deprecation_qs]
-
-        # Annotate deprecation ...
-        kwargs = {
-            "is_deprecated": Case(
-                When(fqn__in=deprecations, then=Value(True)), default=Value(False)
-            )
-        }
-        qs = qs.annotate(**kwargs)
-
-        # Annotate sign state (by repository) ...
-        '''
-        distro = models.AnsibleDistribution.objects.filter(base_path=obj.repository.name).first()
-        repo_version = distro.repository.latest_version()
-        distro_content = repo_version.content.filter(pulp_type="ansible.collection_signature")
-        sigs = models.CollectionVersionSignature.objects.filter(pk__in=distro_content)
-        filtered_signatures = self.get_collection_version(obj).signatures.filter(pk__in=sigs)
-        return CollectionVersionSignatureSerializer(filtered_signatures, many=True).data
-        '''
-        '''
-        for distro in AnsibleDistribution.objects.all():
-            repo_version = distro.repository.latest_version()
-            distro_content = repo_version.content.filter(pulp_type="ansible.collection_signature")
-            sigs = CollectionVersionSignature.objects.filter(pk__in=distro_content)
-
-            kwargs = {
-                f"{distro.base_path.replace('-', '_')}_signed": Case(
-                    When(
-                        content__ansible_collectionversion__signatures__in=sigs,
-                        then=Value(True)
-                    ),
-                    default=Value(False)
-                )
-            }
-            qs = qs.annotate(**kwargs)
-        '''
-
-        qs = qs.annotate(signatures_count=Count('content__ansible_collectionversion__signatures'))
-
-        return qs
+        return CollectionVersion.objects.raw('''
+            SELECT
+                distinct
+                acv.*,
+                cr.name as reponame,
+                acv.namespace,
+                acv.name,
+                acv.version,
+                (
+                    SELECT
+                        COUNT(*)
+                    FROM
+                        core_repositorycontent crc2
+                    WHERE
+                        crc2.content_id=cc.pulp_id
+                        AND
+                        crc2.repository_id=cr.pulp_id
+                        AND
+                        acv.content_ptr_id=crc2.content_id
+                ) as rc_count,
+                (
+                    SELECT
+                        COUNT(*)
+                    FROM
+                        ansible_collectionversionsignature acvs
+                    WHERE
+                        acvs.signed_collection_id=acv.content_ptr_id
+                        AND
+                        (
+                            SELECT
+                                COUNT(*)
+                            FROM
+                                core_repositorycontent crc3
+                            WHERE
+                                crc3.repository_id=crc.repository_id
+                                AND
+                                crc3.content_id=acvs.content_ptr_id
+                        )>=1
+                ) as sig_count
+            FROM
+                ansible_collectionversion acv,
+                core_content cc,
+                core_repositorycontent crc
+            inner join core_repository cr ON crc.repository_id=cr.pulp_id
+            WHERE
+                cc.pulp_id=crc.content_id
+                AND
+                (
+                    SELECT
+                        COUNT(*)
+                    FROM
+                        core_repositorycontent crc2
+                    WHERE
+                        crc2.content_id=cc.pulp_id
+                        AND
+                        crc2.repository_id=cr.pulp_id
+                        AND
+                        acv.content_ptr_id=crc2.content_id
+                )>=1
+            ORDER BY
+                acv.namespace,
+                acv.name,
+                acv.version,
+                reponame
+        ''')

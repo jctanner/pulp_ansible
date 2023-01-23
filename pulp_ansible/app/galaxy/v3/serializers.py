@@ -347,7 +347,8 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
     name = serializers.SerializerMethodField()
     version = serializers.SerializerMethodField()
     is_highest = serializers.SerializerMethodField()
-    is_deprecated = serializers.SerializerMethodField()
+    #is_deprecated = serializers.SerializerMethodField()
+    is_signed = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     updated_at = serializers.SerializerMethodField()
     requires_ansible = serializers.SerializerMethodField()
@@ -364,7 +365,8 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
             "name",
             "version",
             "is_highest",
-            "is_deprecated",
+            #"is_deprecated",
+            "is_signed",
             "href",
             "created_at",
             "updated_at",
@@ -377,10 +379,26 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
         model = models.CollectionVersion
 
     def get_collection_version(self, obj):
+        if isinstance(obj, models.CollectionVersion):
+            return obj
         return obj.collection_version
 
     def get_pulp_id(self, obj):
-        return self.get_collection_version(obj).pulp_id
+
+        '''
+        print(f'GET_PULP_ID obj:{obj}')
+        for x in dir(obj):
+            if x.startswith('_'):
+                continue
+            if x[0] != x[0].lower():
+                continue
+            print('\t' + x)
+            #print('\t\t' + getattr(obj, x))
+
+        #return self.get_collection_version(obj).pulp_id
+        #return obj.pulp_id
+        '''
+        return obj.pk
 
     def get_namespace(self, obj):
         return self.get_collection_version(obj).namespace
@@ -410,8 +428,8 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
         """Get href."""
 
         ctx = _get_distro_context({
-            "path": obj.repository.name,
-            "distro_base_path": obj.repository.name}
+            "path": obj.reponame,
+            "distro_base_path": obj.reponame}
         )
         cv = self.get_collection_version(obj)
         return reverse(
@@ -422,20 +440,16 @@ class CollectionVersionSearchListSerializer(CollectionVersionListSerializer):
     def get_is_deprecated(self, obj):
         return obj.is_deprecated
 
+    def get_is_signed(self, obj):
+        return obj.sig_count > 0
+
     def get_tags(self, obj):
         return [x.name for x in self.get_collection_version(obj).tags.all()]
 
     def get_repository_name(self, obj):
-        return obj.repository.name
+        return obj.reponame
 
     def get_signatures(self, obj):
-        """
-        Get the signatures.
-        """
-
-        distro = models.AnsibleDistribution.objects.filter(base_path=obj.repository.name).first()
-        repo_version = distro.repository.latest_version()
-        distro_content = repo_version.content.filter(pulp_type="ansible.collection_signature")
-        sigs = models.CollectionVersionSignature.objects.filter(pk__in=distro_content)
-        filtered_signatures = self.get_collection_version(obj).signatures.filter(pk__in=sigs)
-        return CollectionVersionSignatureSerializer(filtered_signatures, many=True).data
+        if hasattr(obj, 'filtered_signatures'):
+            return obj.filtered_signatures
+        return []
